@@ -92,6 +92,17 @@ drop policy if exists "own rows" on public.push_subscriptions;
 create policy "own rows" on public.push_subscriptions for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 
+-- ───────────── Data API эрх ─────────────
+-- «Automatically expose new tables»-ийг унтраасан үед хүснэгтүүд API-д харагдахгүй тул
+-- эрхийг гараар өгнө: нэвтэрсэн хэрэглэгч (RLS-ээр хязгаарлагдсан) ба сервер (cron). anon — юу ч үгүй.
+grant usage on schema public to authenticated, service_role;
+grant select, insert, update, delete
+  on public.days, public.photos, public.weekly_reviews, public.push_subscriptions
+  to authenticated, service_role;
+revoke all
+  on public.days, public.photos, public.weekly_reviews, public.push_subscriptions
+  from anon;
+
 -- ───────────── Private storage bucket ─────────────
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('progress-photos', 'progress-photos', false, 10485760, array['image/jpeg'])

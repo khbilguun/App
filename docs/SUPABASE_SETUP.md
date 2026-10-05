@@ -8,8 +8,12 @@
 
 1. https://supabase.com → **Sign in** → **New project**
 2. Нэр: `zun-2027`, Database password: хүчтэй нууц үг (хадгалж аваарай)
-3. **Region: Southeast Asia (Singapore)** эсвэл **Northeast Asia (Tokyo)** — Улаанбаатарт ойр
-4. **Create new project** → 1–2 минут хүлээнэ
+3. **Region:** Specific regions жагсаалтаас **Southeast Asia (Singapore)** эсвэл **Northeast Asia (Tokyo)** — Улаанбаатарт ойр
+4. **Security:**
+   - ✅ **Enable Data API** — асаалттай үлдээнэ (app үүгээр өгөгдөлдөө хандана)
+   - ⬜ **Automatically expose new tables** — **унтраана** (эрхийг `0001_init.sql` гараар өгнө)
+   - ✅ **Enable automatic RLS** — асаана (нэмэлт хамгаалалт)
+5. **Create new project** → 1–2 минут хүлээнэ
 
 ## 2. Хүснэгт, хамгаалалт, зургийн bucket үүсгэх
 
