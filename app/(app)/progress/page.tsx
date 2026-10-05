@@ -9,7 +9,7 @@ import { PhotoTimeline } from "@/components/progress/PhotoTimeline";
 import { PlanVsActual } from "@/components/progress/PlanVsActual";
 import { fetchDays, fetchPhotos, fetchReviews, signUrls } from "@/lib/data";
 import { useToday } from "@/lib/useToday";
-import { reviewHasContent, type DayRow, type PhotoRow, type ReviewRow } from "@/lib/types";
+import { reviewHasContent, type DayRow, type PhotoRow, type Pose, type ReviewRow } from "@/lib/types";
 
 export default function ProgressPage() {
   const today = useToday();
@@ -31,6 +31,11 @@ export default function ProgressPage() {
   }, []);
 
   const byDate = useMemo(() => new Map((days ?? []).map((d) => [d.date, d])), [days]);
+  const posesByDate = useMemo(() => {
+    const m = new Map<string, Pose[]>();
+    for (const p of photos) m.set(p.date, [...(m.get(p.date) ?? []), p.pose]);
+    return m;
+  }, [photos]);
   const reviewWeeks = useMemo(() => new Set(reviews.filter(reviewHasContent).map((r) => r.week_start)), [reviews]);
 
   return (
@@ -48,7 +53,7 @@ export default function ProgressPage() {
           <MeasureChart days={days} />
           <BeforeAfter photos={photos} urls={urls} />
           <PlanVsActual days={days} today={today} />
-          <Heatmap byDate={byDate} reviewWeeks={reviewWeeks} today={today} />
+          <Heatmap byDate={byDate} posesByDate={posesByDate} reviewWeeks={reviewWeeks} today={today} />
           <PhotoTimeline
             photos={photos}
             urls={urls}

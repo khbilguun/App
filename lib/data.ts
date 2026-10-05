@@ -156,3 +156,7 @@ export async function fetchDaysBetween(from: string, to: string): Promise<DayRow
   const data = check(await supabase().from("days").select("*").gte("date", from).lte("date", to).order("date"));
   return (data ?? []).map(normalizeDay);
 }
+
+export async function fetchPhotosBetween(from: string, to: string): Promise<PhotoRow[]> {
+  return check(await supabase().from("photos").select("*").gte("date", from).lte("date", to)) ?? [];
+}

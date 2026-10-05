@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BigToggle } from "@/components/ui/BigToggle";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { Stepper } from "@/components/ui/Stepper";
-import { dayStatus } from "@/lib/completion";
+import { dayStatus, requiredPoses } from "@/lib/completion";
 import { fetchDay, fetchPhotosFor, fetchReview, lastMeasures, signUrls } from "@/lib/data";
 import { addDays, longLabel, mondayOf } from "@/lib/dates";
 import { END, START, TOTAL_DAYS, clampToProgram, dayNumber, daysUntilSummer, inProgram, planFor } from "@/lib/program";
@@ -42,6 +42,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
   const router = useRouter();
   const isToday = date === today;
   const plan = planFor(date);
+  const needed = requiredPoses(date);
 
   const [day, setDay] = useState<DayRow | null>(null);
   const dayRef = useRef<DayRow | null>(null);
@@ -67,7 +68,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
         const reviewed = reviewHasContent(r);
         let loaded = d;
         // Жишээ нь: Ням гарагт дүгнэлтээ бичээд буцаж ирэхэд өдөр бүрэн болсон байж болно
-        if (!d.completed_at && dayStatus(date, today, d, reviewed) === "complete") {
+        if (!d.completed_at && dayStatus(date, today, d, { hasReview: reviewed, poses: p.map((x) => x.pose) }) === "complete") {
           loaded = { ...d, completed_at: new Date().toISOString() };
           schedule(loaded, 0);
           setCelebrate(true);
@@ -87,25 +88,23 @@ function DayEditor({ date, today }: { date: string; today: string }) {
     };
   }, [date, today, plan.kind, schedule]);
 
-  const status = useMemo(() => (day ? dayStatus(date, today, day, hasReview) : "pending"), [day, date, today, hasReview]);
+  const poses = useMemo(() => photos.map((p) => p.pose), [photos]);
+  const status = useMemo(() => (day ? dayStatus(date, today, day, { hasReview, poses }) : "pending"), [day, date, today, hasReview, poses]);
 
-  const update = useCallback(
-    (patch: Partial<DayRow>, delay = 250) => {
-      const cur = dayRef.current;
-      if (!cur) return;
-      let next = { ...cur, ...patch };
-      // Бүрэн болмогц нэг удаа тэмдэглэж, animation үзүүлнэ
-      if (!next.completed_at && dayStatus(date, today, next, hasReview) === "complete") {
-        next = { ...next, completed_at: new Date().toISOString() };
-        delay = 0;
-        setCelebrate(true);
-      }
-      dayRef.current = next;
-      setDay(next);
-      schedule(next, delay);
-    },
-    [schedule, date, today, hasReview],
-  );
+  const update = (patch: Partial<DayRow>, delay = 250) => {
+    const cur = dayRef.current;
+    if (!cur) return;
+    let next = { ...cur, ...patch };
+    // Бүрэн болмогц нэг удаа тэмдэглэж, animation үзүүлнэ
+    if (!next.completed_at && dayStatus(date, today, next, { hasReview, poses }) === "complete") {
+      next = { ...next, completed_at: new Date().toISOString() };
+      delay = 0;
+      setCelebrate(true);
+    }
+    dayRef.current = next;
+    setDay(next);
+    schedule(next, delay);
+  };
 
   const goto = (d: string) => {
     flush();
@@ -220,18 +219,21 @@ function DayEditor({ date, today }: { date: string; today: string }) {
           <Card className="mt-3 p-4">
             <div className="mb-3 flex items-center justify-between">
               <span className="font-medium">Явцын зураг</span>
-              <span className="text-[13px] text-muted">заавал биш</span>
+              <span className="text-[13px] text-muted">{needed.length === 3 ? "Ням: 3 байрлал" : "Урдаас 1 заавал"}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {POSES.map((p) => {
                 const ph = photos.find((x) => x.pose === p.id);
                 const url = ph && urls[ph.storage_path];
+                const required = needed.includes(p.id);
                 return (
                   <Link
                     key={p.id}
                     href={`/camera?date=${date}&pose=${p.id}`}
                     onClick={() => flush()}
-                    className="relative flex aspect-[3/4] flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-dashed border-border bg-surface-2 text-muted active:scale-[0.98]"
+                    className={`relative flex aspect-[3/4] flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border-2 border-dashed active:scale-[0.98] ${
+                      url ? "border-transparent" : required ? "border-accent bg-surface-2 text-text" : "border-border bg-surface-2 text-muted"
+                    }`}
                   >
                     {url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -244,6 +246,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
                     >
                       {p.label}
                     </span>
+                    {!url && <span className="relative z-10 text-[11px] text-muted">{required ? "заавал" : "заавал биш"}</span>}
                   </Link>
                 );
               })}

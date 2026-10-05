@@ -2,10 +2,10 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { requiredItems } from "@/lib/completion";
 import { mondayOf, todayUB } from "@/lib/dates";
-import { TOTAL_DAYS, dayNumber, inProgram, planFor } from "@/lib/program";
+import { TOTAL_DAYS, dayNumber, inProgram } from "@/lib/program";
 import { sendToSubs } from "@/lib/pushServer";
 import { adminSupabase } from "@/lib/supabase/server";
-import { reviewHasContent, type DayRow } from "@/lib/types";
+import { reviewHasContent, type DayRow, type Pose } from "@/lib/types";
 
 // pg_cron (Supabase) өдөр бүр 13:00 UTC = 21:00 УБ-д дуудна.
 function authorized(req: NextRequest) {
@@ -13,6 +13,13 @@ function authorized(req: NextRequest) {
   const got = req.headers.get("authorization") ?? "";
   const want = `Bearer ${secret}`;
   return !!secret && got.length === want.length && timingSafeEqual(Buffer.from(got), Buffer.from(want));
+}
+
+function hint(items: { key: string; done: boolean }[]) {
+  const missing = (k: string) => items.some((i) => i.key === k && !i.done);
+  if (missing("review")) return " Дүгнэлтээ мартуузай.";
+  if (items.some((i) => i.key.startsWith("photo_") && !i.done)) return " Зургаа аваарай.";
+  return "";
 }
 
 async function handle(req: NextRequest) {
@@ -28,11 +35,15 @@ async function handle(req: NextRequest) {
   const users = [...new Set((subs ?? []).map((s) => s.user_id as string))];
   let sent = 0;
   for (const uid of users) {
-    const [{ data: day }, { data: review }] = await Promise.all([
+    const [{ data: day }, { data: review }, { data: photos }] = await Promise.all([
       db.from("days").select("*").eq("user_id", uid).eq("date", today).maybeSingle(),
       db.from("weekly_reviews").select("*").eq("user_id", uid).eq("week_start", mondayOf(today)).maybeSingle(),
+      db.from("photos").select("pose").eq("user_id", uid).eq("date", today),
     ]);
-    const items = requiredItems(today, (day as DayRow) ?? undefined, reviewHasContent(review));
+    const items = requiredItems(today, (day as DayRow) ?? undefined, {
+      hasReview: reviewHasContent(review),
+      poses: (photos ?? []).map((p) => p.pose as Pose),
+    });
     const left = items.filter((i) => !i.done).length;
     if (left === 0) continue; // бүрэн бол сануулахгүй
 
@@ -40,7 +51,7 @@ async function handle(req: NextRequest) {
     const body =
       left === items.length
         ? `Өдөр ${n}/${TOTAL_DAYS} — өдрөө бөглөх үү? 15 секунд л болно.`
-        : `Өдөр ${n}/${TOTAL_DAYS} — ${left} зүйл үлдлээ.${planFor(today).kind === "rest" ? " Дүгнэлтээ мартуузай." : ""}`;
+        : `Өдөр ${n}/${TOTAL_DAYS} — ${left} зүйл үлдлээ.${hint(items)}`;
     sent += await sendToSubs(
       db,
       (subs ?? []).filter((s) => s.user_id === uid),

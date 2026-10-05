@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayStatus } from "./completion";
+import { dayStatus, requiredPoses } from "./completion";
 import { addDays, diffDays, mondayOf, todayUB, weekday } from "./dates";
 import { END, START, TOTAL_DAYS, dayNumber, daysUntilSummer, planFor, plannedCounts, weekNumber } from "./program";
 import { emptyDay } from "./types";
@@ -43,17 +43,25 @@ describe("program", () => {
 
 describe("dayStatus", () => {
   const today = "2026-10-07";
+  const none = { hasReview: false, poses: [] };
   it("алдсан, хүлээгдэж буй, ирээдүй", () => {
-    expect(dayStatus("2026-10-05", today, undefined, false)).toBe("missed");
-    expect(dayStatus(today, today, undefined, false)).toBe("pending");
-    expect(dayStatus("2026-10-08", today, undefined, false)).toBe("future");
+    expect(dayStatus("2026-10-05", today, undefined, none)).toBe("missed");
+    expect(dayStatus(today, today, undefined, none)).toBe("pending");
+    expect(dayStatus("2026-10-08", today, undefined, none)).toBe("future");
+  });
+  it("зураг: өдөр бүр урд, Ням гарагт 3", () => {
+    expect(requiredPoses("2026-10-06")).toEqual(["front"]);
+    expect(requiredPoses("2026-10-11")).toEqual(["front", "side", "back"]);
   });
   it("бүрэн / хагас", () => {
     const d = { ...emptyDay("2026-10-06"), no_alcohol: true, reading: true, skincare: true, phone_free_sleep: true };
-    expect(dayStatus(d.date, today, d, false)).toBe("partial");
-    expect(dayStatus(d.date, today, { ...d, run_minutes: 25 }, false)).toBe("complete");
+    const run = { ...d, run_minutes: 25 };
+    expect(dayStatus(d.date, today, d, { hasReview: false, poses: ["front"] })).toBe("partial");
+    expect(dayStatus(d.date, today, run, { hasReview: false, poses: [] })).toBe("partial");
+    expect(dayStatus(d.date, today, run, { hasReview: false, poses: ["front"] })).toBe("complete");
     const sun = { ...d, date: "2026-10-11" };
-    expect(dayStatus(sun.date, "2026-10-11", sun, false)).toBe("partial");
-    expect(dayStatus(sun.date, "2026-10-11", sun, true)).toBe("complete");
+    expect(dayStatus(sun.date, sun.date, sun, { hasReview: true, poses: ["front"] })).toBe("partial");
+    expect(dayStatus(sun.date, sun.date, sun, { hasReview: false, poses: ["front", "side", "back"] })).toBe("partial");
+    expect(dayStatus(sun.date, sun.date, sun, { hasReview: true, poses: ["front", "side", "back"] })).toBe("complete");
   });
 });

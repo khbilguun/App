@@ -8,7 +8,9 @@ create extension if not exists pg_net;
 -- Нууц утгыг Vault-д хадгална (SQL-д ил бичихгүйн тулд)
 select vault.create_secret('<CRON_SECRET>', 'reminder_cron_secret');
 
--- 13:00 UTC = 21:00 Улаанбаатар
+-- Цагийн бүс: Supabase дээр pg_cron нь UTC-ээр ажилладаг (cron.timezone = GMT).
+-- Улаанбаатар = UTC+8, зуны цаг байхгүй (2017 оноос хойш) → 21:00 УБ = 13:00 UTC, жилийн турш.
+-- Шалгах: show cron.timezone;   → GMT эсвэл UTC гарах ёстой
 select cron.schedule(
   'daily-reminder',
   '0 13 * * *',

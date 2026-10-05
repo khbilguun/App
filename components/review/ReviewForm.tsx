@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { dayStatus } from "@/lib/completion";
-import { fetchDaysBetween, fetchReview, saveReview } from "@/lib/data";
+import { fetchDaysBetween, fetchPhotosBetween, fetchReview, saveReview } from "@/lib/data";
 import { addDays, shortLabel } from "@/lib/dates";
 import { inProgram, planFor, weekNumber } from "@/lib/program";
-import type { DayRow, ReviewRow } from "@/lib/types";
+import type { DayRow, PhotoRow, ReviewRow } from "@/lib/types";
 import { useToday } from "@/lib/useToday";
 
 const QUESTIONS: { key: "went_well" | "obstacles" | "change_next"; label: string; placeholder: string }[] = [
@@ -26,14 +26,16 @@ export function ReviewForm({ weekStart }: { weekStart: string }) {
   const today = useToday() ?? "";
   const [review, setReview] = useState<ReviewRow | null>(null);
   const [days, setDays] = useState<DayRow[]>([]);
+  const [photos, setPhotos] = useState<PhotoRow[]>([]);
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef<ReviewRow | null>(null);
   const weekEnd = addDays(weekStart, 6);
 
   useEffect(() => {
-    Promise.all([fetchReview(weekStart), fetchDaysBetween(weekStart, weekEnd)])
-      .then(([r, d]) => {
+    Promise.all([fetchReview(weekStart), fetchDaysBetween(weekStart, weekEnd), fetchPhotosBetween(weekStart, weekEnd)])
+      .then(([r, d, p]) => {
+        setPhotos(p);
         setReview(r ?? { week_start: weekStart, went_well: "", obstacles: "", change_next: "" });
         setDays(d);
       })
@@ -77,7 +79,9 @@ export function ReviewForm({ weekStart }: { weekStart: string }) {
   // Долоо хоногийн товч статистик
   const dates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).filter(inProgram);
   const byDate = new Map(days.map((d) => [d.date, d]));
-  const complete = dates.filter((d) => dayStatus(d, today, byDate.get(d), true) === "complete").length;
+  const complete = dates.filter(
+    (d) => dayStatus(d, today, byDate.get(d), { hasReview: true, poses: photos.filter((p) => p.date === d).map((p) => p.pose) }) === "complete",
+  ).length;
   const cf = dates.filter((d) => planFor(d).kind === "crossfit");
   const rn = dates.filter((d) => ["run", "walk"].includes(planFor(d).kind));
   const cfDone = cf.filter((d) => byDate.get(d)?.crossfit).length;

@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { dayStatus, type DayStatus } from "@/lib/completion";
 import { WEEKDAYS_SHORT, addDays, fullLabel, monthLabel, mondayOf } from "@/lib/dates";
 import { END, START, inProgram } from "@/lib/program";
-import type { DayRow } from "@/lib/types";
+import type { DayRow, Pose } from "@/lib/types";
 
 const CELL: Record<DayStatus, string> = {
   complete: "bg-accent",
@@ -24,7 +24,21 @@ const LABEL: Record<DayStatus, string> = {
   future: "удахгүй",
 };
 
-export function Heatmap({ byDate, reviewWeeks, today }: { byDate: Map<string, DayRow>; reviewWeeks: Set<string>; today: string }) {
+export function Heatmap({
+  byDate,
+  posesByDate,
+  reviewWeeks,
+  today,
+}: {
+  byDate: Map<string, DayRow>;
+  posesByDate: Map<string, Pose[]>;
+  reviewWeeks: Set<string>;
+  today: string;
+}) {
+  const statusOf = useCallback(
+    (d: string) => dayStatus(d, today, byDate.get(d), { hasReview: reviewWeeks.has(mondayOf(d)), poses: posesByDate.get(d) ?? [] }),
+    [today, byDate, reviewWeeks, posesByDate],
+  );
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -41,11 +55,11 @@ export function Heatmap({ byDate, reviewWeeks, today }: { byDate: Map<string, Da
     for (const w of weeks)
       for (const d of w.cells) {
         if (!d || d > today) continue;
-        const s = dayStatus(d, today, byDate.get(d), reviewWeeks.has(mondayOf(d)));
+        const s = statusOf(d);
         if (s in c) c[s as keyof typeof c]++;
       }
     return c;
-  }, [weeks, byDate, reviewWeeks, today]);
+  }, [weeks, statusOf, today]);
 
   useEffect(() => {
     const el = scrollRef.current?.querySelector<HTMLElement>("[data-today]");
@@ -78,7 +92,7 @@ export function Heatmap({ byDate, reviewWeeks, today }: { byDate: Map<string, Da
                     <span className="h-[17px] text-[10px] whitespace-nowrap text-muted">{showMonth ? monthLabel(first) : ""}</span>
                     {w.cells.map((d, i) => {
                       if (!d) return <span key={i} className="h-[22px] w-[22px]" />;
-                      const s = dayStatus(d, today, byDate.get(d), reviewWeeks.has(mondayOf(d)));
+                      const s = statusOf(d);
                       return (
                         <button
                           key={d}

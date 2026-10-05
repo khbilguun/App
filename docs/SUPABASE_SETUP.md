@@ -75,7 +75,8 @@ Push болон камер нь HTTPS дээр л бүрэн ажиллана �
 2. **SQL Editor** → `supabase/migrations/0002_reminder_cron.sql`-ийг хуулна
 3. `<APP_URL>` → `https://<нэр>.vercel.app`, `<CRON_SECRET>` → 5-р алхмын утга
 4. **Run**
-5. Шалгах: `select * from cron.job;` → `daily-reminder`, `0 13 * * *` (= 21:00 УБ)
+5. Шалгах: `select * from cron.job;` → `daily-reminder`, `0 13 * * *`
+6. Цагийн бүс: `show cron.timezone;` → `GMT` (эсвэл `UTC`) гарвал зөв. pg_cron UTC-ээр ажилладаг тул 13:00 UTC = **21:00 Улаанбаатар** (UTC+8, зуны цаггүй).
 
 Гараар турших:
 ```bash
