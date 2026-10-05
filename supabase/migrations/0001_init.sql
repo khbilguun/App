@@ -56,7 +56,7 @@ create table if not exists public.push_subscriptions (
 
 -- ───────────── updated_at автоматаар ─────────────
 create or replace function public.touch_updated_at() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = '' as $$
 begin
   new.updated_at = now();
   return new;
@@ -102,6 +102,14 @@ grant select, insert, update, delete
 revoke all
   on public.days, public.photos, public.weekly_reviews, public.push_subscriptions
   from anon;
+
+-- «Enable automatic RLS» сонголтын үүсгэсэн функцийг API-аас дуудагдахгүй болгоно
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end $$;
 
 -- ───────────── Private storage bucket ─────────────
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
